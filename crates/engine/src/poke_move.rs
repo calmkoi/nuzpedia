@@ -8,7 +8,7 @@ pub struct Move {
     pub category: MoveCategory,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MoveCategory {
     Physical,
     Special,
