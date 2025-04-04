@@ -1,3 +1,5 @@
+use crate::pokemon::Type;
+
 #[derive(Debug, Clone)]
 pub struct Move {
     pub name: String,
