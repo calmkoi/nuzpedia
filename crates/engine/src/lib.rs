@@ -1,14 +1,8 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+pub mod pokemon;
+pub mod move;
+pub mod damage;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+// Re-export for easy external use
+pub use pokemon::Pokemon;
+pub use move::{Move, MoveCategory};
+pub damage::calculate_gen1;
