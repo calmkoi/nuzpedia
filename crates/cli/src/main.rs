@@ -1,16 +1,16 @@
-use engine::{Pokemon, Move, MoveCategory, Type, Stats, calculate_gen1};
+use engine::{PokemonGen1, MoveGen1, MoveCategory, TypeGen1, StatsGen1, calc_damage_gen_1};
 
 fn main() {
-    let pikachu = Pokemon { 
+    let pikachu = PokemonGen1 { 
         name: "Pikachu".into(), 
-        types: [Type::Electric, Type::None], 
-        stats: Stats {lvl: 100, hp: 35, attack: 55, defense: 30, special: 50, speed: 90}, 
+        types: [TypeGen1::Electric, TypeGen1::None], 
+        stats: StatsGen1 {lvl: 100, hp: 35, attack: 55, defense: 30, special: 50, speed: 90}, 
     };
-    let thunderbolt = Move { 
+    let thunderbolt = MoveGen1 { 
         name: "Thunderbolt".into(),
-        typ: Type::Electric,
+        typ: TypeGen1::Electric,
         power: 95,
         category: MoveCategory::Special,
     };
-    println!("Damage: {}", calculate_gen1(&pikachu, &pikachu, &thunderbolt));
+    println!("Damage: {}", calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt));
 }
