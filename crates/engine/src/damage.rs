@@ -1,4 +1,4 @@
-use crate::{PokemonGen1, MoveGen1, MoveCategory, TypeGen1, StatsGen1};
+use crate::{PokemonGen1, MoveGen1, MoveCategory};
 
 pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
@@ -40,6 +40,7 @@ pub fn calc_damage_gen_1(
     let damage = (base as f64 * stab * type_eff) as u16;
 
     // Apply random factor: Gen 1 rolls 217-255 (85-100% of damage)
+    // TODO: implement options for high and low rolls
     let random_factor = 217 + (rand::random::<u8>() % 39); // [217, 255]
     (damage * random_factor as u16) / 255
 }
@@ -47,6 +48,9 @@ pub fn calc_damage_gen_1(
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Need to explicitly import these as this file doesn't use them
+    use crate::types::TypeGen1;
+    use crate::StatsGen1;
 
     #[test]
     fn test_gen1_damage() {
@@ -61,6 +65,6 @@ mod tests {
             power: 95,
             category: MoveCategory::Special,
         };
-        assert!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt, false) > 0); // Example value
+        assert!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt, false) > 0); // TODO: fix this to actually test properly
     }
 }
