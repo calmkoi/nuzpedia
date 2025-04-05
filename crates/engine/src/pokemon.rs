@@ -1,12 +1,13 @@
+// Generation 1 ----------------------------------------------------------
 #[derive(Debug, Clone)]
-pub struct Pokemon {
+pub struct PokemonGen1 {
     pub name: String,
-    pub types: [Type; 2], // e.g., [Type::Electric, Type::None]
-    pub stats: Stats,
+    pub types: [TypeGen1; 2], // e.g., [Type::Electric, Type::None]
+    pub stats: StatsGen1,
 }
 
 #[derive(Debug, Clone)]
-pub struct Stats {
+pub struct StatsGen1 {
     pub lvl: u8,
     pub hp: u8,
     pub attack: u8,
@@ -16,7 +17,7 @@ pub struct Stats {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Type {
+pub enum TypeGen1 {
     Normal,
     Fire,
     Water,

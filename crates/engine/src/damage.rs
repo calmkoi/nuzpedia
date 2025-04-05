@@ -1,9 +1,9 @@
-use crate::{Pokemon, Move, MoveCategory, Type, Stats};
+use crate::{PokemonGen1, MoveGen1, MoveCategory, TypeGen1, StatsGen1};
 
-pub fn calculate_gen1(
-    attacker: &Pokemon,
-    defender: &Pokemon,
-    mov: &Move,
+pub fn calc_damage_gen_1(
+    attacker: &PokemonGen1,
+    defender: &PokemonGen1,
+    mov: &MoveGen1,
 ) -> u16 {
     // Determine STAB
     let stab = if attacker.types.contains(&mov.typ) { 1.5 } else { 1.0 };
@@ -35,17 +35,17 @@ mod tests {
 
     #[test]
     fn test_gen1_damage() {
-        let pikachu = Pokemon {
+        let pikachu = PokemonGen1 {
             name: "Pikachu".into(),
-            types: [Type::Electric, Type::None],
-            stats: Stats {lvl: 100, hp: 35, attack: 55, defense: 30, special: 50, speed: 90},
+            types: [TypeGen1::Electric, TypeGen1::None],
+            stats: StatsGen1 {lvl: 100, hp: 35, attack: 55, defense: 30, special: 50, speed: 90},
         };
-        let thunderbolt = Move {
+        let thunderbolt = MoveGen1 {
             name: "Thunderbolt".into(),
-            typ: Type::Electric,
+            typ: TypeGen1::Electric,
             power: 95,
             category: MoveCategory::Special,
         };
-        assert_eq!(calculate_gen1(&pikachu, &pikachu, &thunderbolt), 202); // Example value
+        assert_eq!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt), 202); // Example value
     }
 }

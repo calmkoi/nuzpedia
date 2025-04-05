@@ -1,9 +1,9 @@
-use crate::pokemon::Type;
+use crate::pokemon::TypeGen1;
 
 #[derive(Debug, Clone)]
-pub struct Move {
+pub struct MoveGen1 {
     pub name: String,
-    pub typ: Type,
+    pub typ: TypeGen1,
     pub power: u8,
     pub category: MoveCategory,
 }
