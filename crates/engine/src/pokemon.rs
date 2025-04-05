@@ -1,3 +1,5 @@
+use crate::TypeGen1;
+
 // Generation 1 ----------------------------------------------------------
 #[derive(Debug, Clone)]
 pub struct PokemonGen1 {
@@ -14,24 +16,4 @@ pub struct StatsGen1 {
     pub defense: u8,
     pub special: u8,  // Gen 1 uses one special stat
     pub speed: u8,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum TypeGen1 {
-    Normal,
-    Fire,
-    Water,
-    Electric,
-    Grass,
-    Ice,
-    Fighting,
-    Poison,
-    Ground,
-    Flying,
-    Psychic,
-    Bug,
-    Rock,
-    Ghost,
-    Dragon,
-    None,    // For single-type pokemon
 }

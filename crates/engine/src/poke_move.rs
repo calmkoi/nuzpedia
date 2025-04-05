@@ -1,4 +1,4 @@
-use crate::pokemon::TypeGen1;
+use crate::TypeGen1;
 
 #[derive(Debug, Clone)]
 pub struct MoveGen1 {
