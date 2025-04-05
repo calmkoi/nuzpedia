@@ -12,5 +12,5 @@ fn main() {
         power: 95,
         category: MoveCategory::Special,
     };
-    println!("Damage: {}", calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt));
+    println!("Damage: {}", calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt, false));
 }
