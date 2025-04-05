@@ -4,29 +4,44 @@ pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
     defender: &PokemonGen1,
     mov: &MoveGen1,
+    is_critical: bool,
 ) -> u16 {
-    // Determine STAB
-    let stab = if attacker.types.contains(&mov.typ) { 1.5 } else { 1.0 };
+    // Handle status moves (0 damage)
+    if mov.power == 0 {
+        return 0;
+    }
 
-    // TODO: logic to handle status moves
+    // Determine STAB
+    let stab: f64 = if attacker.types.contains(&mov.typ) { 1.5 } else { 1.0 };
+
+    // Determine Crit
+    let crit: u32 = if is_critical { 2 } else { 1 };
+
     // Use Attack or Special based on move type
-    let attacker_attack = if mov.category == MoveCategory::Physical {
-        attacker.stats.attack
-    } else {
-        attacker.stats.special
+    let (attacker_stat, defender_stat) = match mov.category {
+        MoveCategory::Physical => (attacker.stats.attack, defender.stats.defense),
+        MoveCategory::Special => (attacker.stats.special, defender.stats.special),
+        MoveCategory::Status => (0, 0), // This should never be triggered (status moves should have 0 power)
     };
 
-    // Convert values to u32 before multiplication
-    let lvl = attacker.stats.lvl as u32;
-    let power = mov.power as u32;
-    let attack = attacker_attack as u32;
-    let defense = defender.stats.defense as u32;
+    // TODO: implement stat boosts and add logic for crits to ignore them
 
-    // Base damage formula (excl. crit and random)
-    let base = (((2 * lvl / 5 + 2) * power * attack) / (defense * 50) + 2) as u32;
+    // Convert values to u32 to avoid overflow
+    let lvl: u32 = attacker.stats.lvl as u32;
+    let power: u32 = mov.power as u32;
+    let attack: u32 = attacker_stat as u32;
+    let defense: u32 = defender_stat as u32;
 
+    // Base damage formula (excl. random)
+    let base: u32 = (((2 * lvl * crit / 5 + 2) * power * attack) / (defense * 50) + 2) as u32;
 
-    (base as f64 * stab) as u16
+    // Apply STAB and TODO: Add type chart
+    let type_eff = 1.0; // Placeholder for type effectiveness
+    let damage = (base as f64 * stab * type_eff) as u16;
+
+    // Apply random factor: Gen 1 rolls 217-255 (85-100% of damage)
+    let random_factor = 217 + (rand::random::<u8>() % 39); // [217, 255]
+    (damage * random_factor as u16) / 255
 }
 
 #[cfg(test)]
@@ -46,6 +61,6 @@ mod tests {
             power: 95,
             category: MoveCategory::Special,
         };
-        assert_eq!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt), 202); // Example value
+        assert_eq!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt, false), 202); // Example value
     }
 }
