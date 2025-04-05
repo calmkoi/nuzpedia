@@ -127,3 +127,19 @@ pub fn type_effectiveness_gen_1(move_type: TypeGen1, defender_types: &[TypeGen1;
 // Generations 2-5 -------------------------------------------------------
 
 // Generation 6-9 --------------------------------------------------------
+
+// Testing ---------------------------------------------------------------
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_type_effectiveness_gen_1() {
+        // Water vs. Fire (2x)
+        assert_eq!(type_effectiveness_gen_1(TypeGen1::Water, &[TypeGen1::Fire, TypeGen1::None]), 2.0);
+        // Electric vs. Ground (0x)
+        assert_eq!(type_effectiveness_gen_1(TypeGen1::Electric, &[TypeGen1::Ground, TypeGen1::None]), 0.0);
+        // Grass vs. Water/Ground (4x)
+        assert_eq!(type_effectiveness_gen_1(TypeGen1::Grass, &[TypeGen1::Water, TypeGen1::Ground]), 4.0);
+    }
+}
