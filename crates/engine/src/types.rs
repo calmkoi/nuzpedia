@@ -236,192 +236,94 @@ pub fn type_effectiveness_gen_1_fast(move_type: TypeGen1, defender_types: &[Type
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_bitmask_is_same_as_precomputed() {
-        let mut missing_super = Vec::new();
-        let mut missing_not_very = Vec::new();
-        let mut missing_immune = Vec::new();
-
-        // Check SUPER_EFFECTIVE relationships
-        for &(atk, def) in &SUPER_EFFECTIVE {
-            let mask = SUPER_EFFECTIVE_MASK[atk as usize];
-            if mask & (1 << def as u8) == 0 {
-                missing_super.push((atk, def));
-            }
-        }
-
-        // Check NOT_VERY_EFFECTIVE relationships
-        for &(atk, def) in &NOT_VERY_EFFECTIVE {
-            let mask = NOT_VERY_EFFECTIVE_MASK[atk as usize];
-            if mask & (1 << def as u8) == 0 {
-                missing_not_very.push((atk, def));
-            }
-        }
-
-        // Check IMMUNE relationships
-        for &(atk, def) in &IMMUNE {
-            let mask = IMMUNE_MASK[atk as usize];
-            if mask & (1 << def as u8) == 0 {
-                missing_immune.push((atk, def));
-            }
-        }
-
-        // Print results (using references to avoid moves)
-        if !missing_super.is_empty() {
-            println!("Missing SUPER_EFFECTIVE relationships:");
-            for &(atk, def) in &missing_super {  // Note the & here
-                println!("  {:?} → {:?} (expected bit {})", atk, def, def as u8);
-            }
-        }
-
-        if !missing_not_very.is_empty() {
-            println!("Missing NOT_VERY_EFFECTIVE relationships:");
-            for &(atk, def) in &missing_not_very {  // Note the & here
-                println!("  {:?} → {:?} (expected bit {})", atk, def, def as u8);
-            }
-        }
-
-        if !missing_immune.is_empty() {
-            println!("Missing IMMUNE relationships:");
-            for &(atk, def) in &missing_immune {  // Note the & here
-                println!("  {:?} → {:?} (expected bit {})", atk, def, def as u8);
-            }
-        }
-
-        // Now we can check is_empty() because we never moved the vectors
+    /// Helper function to test two different types
+    fn assert_single_type_matchup(
+        attacker: TypeGen1,
+        defender: TypeGen1,
+        expected: f64,
+        fast_impl: bool
+    ) {
+        let actual_result = if fast_impl {
+            type_effectiveness_gen_1_fast(attacker, &[defender, TypeGen1::None])
+        } else {
+            type_effectiveness_gen_1(attacker, &[defender, TypeGen1::None])
+        };
+        
         assert!(
-            missing_super.is_empty() && missing_not_very.is_empty() && missing_immune.is_empty(),
-            "Type effectiveness masks have missing relationships (see above)"
+            (actual_result - expected).abs() < f64::EPSILON,
+            "{:?} -> {:?}: expected {}, got {} (implementation: {})",
+            attacker,
+            defender,
+            expected,
+            actual_result,
+            if fast_impl { "fast" } else { "original" }
         );
     }
 
-    #[test]
-    fn test_type_effectiveness_gen_1() {
-        let mut failures = Vec::new();
-
-        // Test every possible single-type matchup (15 × 15)
+    /// Test all single type matchups for a generation
+    fn test_generation_effectiveness<F>(get_expected: F)
+    where
+        F: Fn(TypeGen1, TypeGen1) -> f64
+    {
         for attacker in TypeGen1::iter() {
             for defender in TypeGen1::iter() {
-                let expected = {
-                    let move_idx = attacker as usize;
-                    let def_idx = defender as usize;
-                    
-                    // CHANGED: Check immunity from attacker's perspective first
-                    if (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        0.0
-                    } else if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        2.0
-                    } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        0.5
-                    } else {
-                        1.0
-                    }
-                };
-        
-                let actual = type_effectiveness_gen_1(attacker, &[defender, TypeGen1::None]);
-                
-                if (actual - expected).abs() > f64::EPSILON {
-                    failures.push((attacker, defender, expected, actual));
-                }
+                let expected = get_expected(attacker, defender);
+                // Test both implementations
+                assert_single_type_matchup(attacker, defender, expected, false);
+                assert_single_type_matchup(attacker, defender, expected, true);
             }
         }
+    }
 
-        // Test critical dual-type combinations
-        let dual_type_cases = [
-            (TypeGen1::Electric, [TypeGen1::Ground, TypeGen1::Flying], 0.0),
-            (TypeGen1::Grass, [TypeGen1::Water, TypeGen1::Ground], 4.0),
-            (TypeGen1::Ghost, [TypeGen1::Normal, TypeGen1::Psychic], 0.0),
-        ];
-
-        for &(atk, [def1, def2], expected) in &dual_type_cases {
-            let actual = type_effectiveness_gen_1(atk, &[def1, def2]);
-            if (actual - expected).abs() > f64::EPSILON {
-                failures.push((atk, def1, expected, actual));
-            }
-        }
-
-        // Report failures (same as before)
-        if !failures.is_empty() {
-            println!("\nTYPE EFFECTIVENESS FAILURES ({}):", failures.len());
-            for (atk, def, expected, actual) in &failures {  // Borrow here
-                let relationship = if *expected == 0.0 {
-                    "IMMUNE"
-                } else if *expected > 1.0 {
-                    "SUPER EFFECTIVE"
-                } else if *expected < 1.0 {
-                    "NOT VERY EFFECTIVE"
-                } else {
-                    "NEUTRAL"
-                };
-                println!("{:?} → {:?}: Expected {} ({}), got {}", 
-                    atk, def, expected, relationship, actual);
-            }
-            panic!("{} type effectiveness checks failed", failures.len());
+    /// Test specific dual-type combinations
+    fn test_dual_type_combinations(cases: &[(TypeGen1, [TypeGen1; 2], f64)]) {
+        for case in cases {
+            let (atk, defs, expected) = *case;
+            let [def1, def2] = defs;
+            
+            let actual_slow = type_effectiveness_gen_1(atk, &defs);
+            let actual_fast = type_effectiveness_gen_1_fast(atk, &defs);
+            
+            assert!(
+                (actual_slow - expected).abs() < f64::EPSILON,
+                "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (slow)",
+                atk, def1, def2, expected, actual_slow
+            );
+            
+            assert!(
+                (actual_fast - expected).abs() < f64::EPSILON,
+                "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (fast)",
+                atk, def1, def2, expected, actual_fast
+            );
         }
     }
 
     #[test]
-    fn test_type_effectiveness_gen_1_fast() {
-        let mut failures = Vec::new();
-
-        // Test every possible single-type matchup (15 × 15)
-        for attacker in TypeGen1::iter() {
-            for defender in TypeGen1::iter() {
-                let expected = {
-                    let move_idx = attacker as usize;
-                    let def_idx = defender as usize;
-                    
-                    // CHANGED: Check immunity from attacker's perspective first
-                    if (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        0.0
-                    } else if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        2.0
-                    } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                        0.5
-                    } else {
-                        1.0
-                    }
-                };
-        
-                let actual = type_effectiveness_gen_1_fast(attacker, &[defender, TypeGen1::None]);
-                
-                if (actual - expected).abs() > f64::EPSILON {
-                    failures.push((attacker, defender, expected, actual));
-                }
+    fn test_gen1_type_effectiveness() {
+        test_generation_effectiveness(|attacker, defender| {
+            let move_idx = attacker as usize;
+            let def_idx = defender as usize;
+            
+            if (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0 {
+                0.0
+            } else if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
+                2.0
+            } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
+                0.5
+            } else {
+                1.0
             }
-        }
+        });
+    }
 
-        // Test critical dual-type combinations
-        let dual_type_cases = [
+    #[test]
+    fn test_gen1_dual_type_combinations() {
+        let cases = [
             (TypeGen1::Electric, [TypeGen1::Ground, TypeGen1::Flying], 0.0),
             (TypeGen1::Grass, [TypeGen1::Water, TypeGen1::Ground], 4.0),
             (TypeGen1::Ghost, [TypeGen1::Normal, TypeGen1::Psychic], 0.0),
         ];
-
-        for &(atk, [def1, def2], expected) in &dual_type_cases {
-            let actual = type_effectiveness_gen_1_fast(atk, &[def1, def2]);
-            if (actual - expected).abs() > f64::EPSILON {
-                failures.push((atk, def1, expected, actual));
-            }
-        }
-
-        // Report failures (same as before)
-        if !failures.is_empty() {
-            println!("\nTYPE EFFECTIVENESS FAILURES ({}):", failures.len());
-            for (atk, def, expected, actual) in &failures {  // Borrow here
-                let relationship = if *expected == 0.0 {
-                    "IMMUNE"
-                } else if *expected > 1.0 {
-                    "SUPER EFFECTIVE"
-                } else if *expected < 1.0 {
-                    "NOT VERY EFFECTIVE"
-                } else {
-                    "NEUTRAL"
-                };
-                println!("{:?} → {:?}: Expected {} ({}), got {}", 
-                    atk, def, expected, relationship, actual);
-            }
-            panic!("{} type effectiveness checks failed", failures.len());
-        }
+        
+        test_dual_type_combinations(&cases);
     }
 }
