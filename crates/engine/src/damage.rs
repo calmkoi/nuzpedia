@@ -1,11 +1,27 @@
 use crate::{PokemonGen1, MoveGen1, MoveCategory};
 use crate::types::type_effectiveness_gen_1;
 
+/// Damage calculation options for controlling RNG behavior
+///
+/// In Gen 1, damage rolls range from 85% to 100% of base damage:
+/// - Min: 217/255 (85%)
+/// - Average: 236/255 (~92.5%)
+/// - Max: 255/255 (100%)
+/// - Random: Random value in [217,255]
+#[derive(Debug, Clone, Copy)]
+pub enum DamageRoll {
+    Min,
+    Average,
+    Max,
+    Random,
+}
+
 pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
     defender: &PokemonGen1,
     mov: &MoveGen1,
     is_critical: bool,
+    roll: DamageRoll,
 ) -> u16 {
     // Handle status moves (0 damage)
     if mov.power == 0 {
@@ -44,9 +60,17 @@ pub fn calc_damage_gen_1(
     let damage = (base as f64 * stab * type_eff) as u16;
 
     // Apply random factor: Gen 1 rolls 217-255 (85-100% of damage)
-    // TODO: implement options for high and low rolls
-    let random_factor = 217 + (rand::random::<u8>() % 39); // [217, 255]
-    (damage * random_factor as u16) / 255
+    let damage: u16 = match roll {
+        DamageRoll::Min => (damage * 217) / 255,
+        DamageRoll::Average => (damage * 236) / 255,
+        DamageRoll::Max => damage,
+        DamageRoll::Random => {
+            let random_factor = 217 + (rand::random::<u8>() % 39);
+            (damage * random_factor as u16) / 255
+        }
+    };
+
+    return damage;
 }
 
 #[cfg(test)]
@@ -91,8 +115,17 @@ mod tests {
             category: MoveCategory::Special,
         };
         
-        let damage = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false);
-        // Verified range from official game mechanics
-        assert!((10..=108).contains(&damage)); 
+        // Test consistent rolls
+        let min = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false, DamageRoll::Min);
+        let avg = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false, DamageRoll::Average);
+        let max = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false, DamageRoll::Max);
+
+        assert!(min < avg && avg < max); 
+        
+        // Test random roll falls within acceptable bounds
+        let random = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false, DamageRoll::Random);
+
+        assert!(random >= min && random <= max);
+        
     }
 }
