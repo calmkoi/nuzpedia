@@ -17,26 +17,27 @@ pub enum DamageRoll {
 }
 
 fn apply_stat_modifier(base_stat: u8, stage: i8) -> u32 {
-    // Gen 1 uses different modifiers than later generations
-    let modifier = match stage.clamp(-6, 6) {
-        -6 => 2.0 / 8.0,
-        -5 => 2.0 / 7.0,
-        -4 => 2.0 / 6.0,
-        -3 => 2.0 / 5.0,
-        -2 => 2.0 / 4.0,
-        -1 => 2.0 / 3.0,
-        0 => 2.0 / 2.0,
-        1 => 3.0 / 2.0,
-        2 => 4.0 / 2.0,
-        3 => 5.0 / 2.0,
-        4 => 6.0 / 2.0,
-        5 => 7.0 / 2.0,
-        6 => 8.0 / 2.0,
-        _ => unreachable!(), // Clamped to -6..=6
+    // Gen 1 uses integer division with truncation toward zero
+    let (numerator, denominator) = match stage.clamp(-6, 6) {
+        -6 => (2, 8),
+        -5 => (2, 7),
+        -4 => (2, 6),
+        -3 => (2, 5),
+        -2 => (2, 4),
+        -1 => (2, 3),
+        0  => (2, 2),
+        1  => (3, 2),
+        2  => (4, 2),
+        3  => (5, 2),
+        4  => (6, 2),
+        5  => (7, 2),
+        6  => (8, 2),
+        _  => unreachable!(),
     };
-
-    // Apply stat modifier and ensure minimum of 1
-    ((base_stat as f64 * modifier).round() as u32).max(1)
+    
+    // Gen 1 calculation: (base * numerator) / denominator
+    let result = (base_stat as u32 * numerator) / denominator;
+    result.max(1) // Minimum of 1
 }
 
 pub fn calc_damage_gen_1(
@@ -175,22 +176,19 @@ mod tests {
     }
 
     #[test]
-    fn test_stat_modifiers() {
-        // Test neutral stage
-        assert_eq!(apply_stat_modifier(100, 0), 100);
-
-        // Test positive stages
-        assert_eq!(apply_stat_modifier(100, 1), 150); // 1.5x
-        assert_eq!(apply_stat_modifier(100, 2), 200); // 2.0x
-        assert_eq!(apply_stat_modifier(100, 6), 400); // 4.0x
+    fn test_gen_1_stat_modifiers() {
+        // Negative stages
+        assert_eq!(apply_stat_modifier(100, -1), 66); // 100*2/3 = 66
+        assert_eq!(apply_stat_modifier(101, -1), 67); // 101*2/3 = 67
+        assert_eq!(apply_stat_modifier(1, -6), 1);    // Clamped to min 1
         
-        // Test negative stages
-        assert_eq!(apply_stat_modifier(100, -1), 67); // 2/3
-        assert_eq!(apply_stat_modifier(100, -2), 50); // 1/2
-        assert_eq!(apply_stat_modifier(100, -6), 25); // 1/4
+        // Positive stages
+        assert_eq!(apply_stat_modifier(100, 1), 150); // 100*3/2
+        assert_eq!(apply_stat_modifier(100, 6), 400); // 100*8/2
         
-        // Test minimum of 1
-        assert_eq!(apply_stat_modifier(1, -6), 1);
+        // Edge cases
+        assert_eq!(apply_stat_modifier(255, 6), 1020); // Max possible
+        assert_eq!(apply_stat_modifier(0, 6), 1);      // Clamped from 0
     }
 
     #[test]
