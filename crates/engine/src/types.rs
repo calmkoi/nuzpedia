@@ -235,95 +235,166 @@ pub fn type_effectiveness_gen_1_fast(move_type: TypeGen1, defender_types: &[Type
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// Helper function to test two different types
-    fn assert_single_type_matchup(
-        attacker: TypeGen1,
-        defender: TypeGen1,
-        expected: f64,
-        fast_impl: bool
-    ) {
-        let actual_result = if fast_impl {
-            type_effectiveness_gen_1_fast(attacker, &[defender, TypeGen1::None])
-        } else {
-            type_effectiveness_gen_1(attacker, &[defender, TypeGen1::None])
-        };
+    
+    trait TypeEffectivenessTester {
+        type Type: Copy + PartialEq + std::fmt::Debug;
         
-        assert!(
-            (actual_result - expected).abs() < f64::EPSILON,
-            "{:?} -> {:?}: expected {}, got {} (implementation: {})",
-            attacker,
-            defender,
-            expected,
-            actual_result,
-            if fast_impl { "fast" } else { "original" }
-        );
-    }
+        // Core functionality
+        fn effectiveness(&self, attacker: Self::Type, defender: Self::Type) -> f64;
+        fn immune(&self, attacker: Self::Type, defender: Self::Type) -> bool;
+        
+        // Required implementations
+        fn all_types() -> Vec<Self::Type>;
+        fn none() -> Self::Type;
+        fn calculate_effectiveness(&self, attacker: Self::Type, defenders: &[Self::Type]) -> f64;
+        fn calculate_effectiveness_fast(&self, attacker: Self::Type, defenders: &[Self::Type]) -> f64;
+        
+        // Test infrastructure
+        fn test_single_type_matchup(
+            &self,
+            attacker: Self::Type,
+            defender: Self::Type,
+            fast_impl: bool
+        ) {
+            let expected = if self.immune(attacker, defender) {
+                0.0
+            } else {
+                self.effectiveness(attacker, defender)
+            };
+            
+            let actual = if fast_impl {
+                self.calculate_effectiveness_fast(attacker, &[defender, Self::none()])
+            } else {
+                self.calculate_effectiveness(attacker, &[defender, Self::none()])
+            };
+            
+            assert!(
+                (actual - expected).abs() < f64::EPSILON,
+                "{:?} -> {:?}: expected {}, got {} (implementation: {})",
+                attacker, defender, expected, actual,
+                if fast_impl { "fast" } else { "original" }
+            );
+        }
 
-    /// Test all single type matchups for a generation
-    fn test_generation_effectiveness<F>(get_expected: F)
-    where
-        F: Fn(TypeGen1, TypeGen1) -> f64
-    {
-        for attacker in TypeGen1::iter() {
-            for defender in TypeGen1::iter() {
-                let expected = get_expected(attacker, defender);
-                // Test both implementations
-                assert_single_type_matchup(attacker, defender, expected, false);
-                assert_single_type_matchup(attacker, defender, expected, true);
+        fn test_all_single_type_combinations(&self) {
+            for attacker in Self::all_types() {
+                for defender in Self::all_types() {
+                    self.test_single_type_matchup(attacker, defender, false);
+                    self.test_single_type_matchup(attacker, defender, true);
+                }
             }
         }
-    }
 
-    /// Test specific dual-type combinations
-    fn test_dual_type_combinations(cases: &[(TypeGen1, [TypeGen1; 2], f64)]) {
-        for case in cases {
-            let (atk, defs, expected) = *case;
-            let [def1, def2] = defs;
-            
-            let actual_slow = type_effectiveness_gen_1(atk, &defs);
-            let actual_fast = type_effectiveness_gen_1_fast(atk, &defs);
+        fn test_dual_type_pair(
+            &self,
+            attacker: Self::Type,
+            defenders: [Self::Type; 2],
+            expected: f64
+        ) {
+            let actual_slow = self.calculate_effectiveness(attacker, &defenders);
+            let actual_fast = self.calculate_effectiveness_fast(attacker, &defenders);
             
             assert!(
                 (actual_slow - expected).abs() < f64::EPSILON,
                 "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (slow)",
-                atk, def1, def2, expected, actual_slow
+                attacker, defenders[0], defenders[1], expected, actual_slow
             );
             
             assert!(
                 (actual_fast - expected).abs() < f64::EPSILON,
                 "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (fast)",
-                atk, def1, def2, expected, actual_fast
+                attacker, defenders[0], defenders[1], expected, actual_fast
             );
+        }
+
+        fn test_all_dual_type_combinations(&self) {
+            let types = Self::all_types();
+            for i in 0..types.len() {
+                for j in i..types.len() { // Avoid duplicate permutations
+                    let type1 = types[i];
+                    let type2 = types[j];
+                    
+                    for attacker in types.iter().copied() {
+                        let expected = {
+                            let eff1 = if self.immune(attacker, type1) {
+                                0.0
+                            } else {
+                                self.effectiveness(attacker, type1)
+                            };
+                            let eff2 = if self.immune(attacker, type2) {
+                                0.0
+                            } else {
+                                self.effectiveness(attacker, type2)
+                            };
+                            eff1 * eff2
+                        };
+                        
+                        self.test_dual_type_pair(attacker, [type1, type2], expected);
+                    }
+                }
+            }
         }
     }
 
-    #[test]
-    fn test_gen1_type_effectiveness() {
-        test_generation_effectiveness(|attacker, defender| {
+    // Gen1 Implementation
+    struct Gen1Tester;
+    
+    impl TypeEffectivenessTester for Gen1Tester {
+        type Type = TypeGen1;
+        
+        fn effectiveness(&self, attacker: TypeGen1, defender: TypeGen1) -> f64 {
             let move_idx = attacker as usize;
             let def_idx = defender as usize;
             
-            if (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                0.0
-            } else if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
+            if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
                 2.0
             } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
                 0.5
             } else {
                 1.0
             }
-        });
+        }
+        
+        fn immune(&self, attacker: TypeGen1, defender: TypeGen1) -> bool {
+            let move_idx = attacker as usize;
+            let def_idx = defender as usize;
+            (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0
+        }
+        
+        fn all_types() -> Vec<TypeGen1> {
+            vec![
+                TypeGen1::Normal, TypeGen1::Fire, TypeGen1::Water, TypeGen1::Electric,
+                TypeGen1::Grass, TypeGen1::Ice, TypeGen1::Fighting, TypeGen1::Poison,
+                TypeGen1::Ground, TypeGen1::Flying, TypeGen1::Psychic, TypeGen1::Bug,
+                TypeGen1::Rock, TypeGen1::Ghost, TypeGen1::Dragon
+            ]
+        }
+        
+        fn none() -> TypeGen1 {
+            TypeGen1::None
+        }
+        
+        fn calculate_effectiveness(&self, attacker: TypeGen1, defenders: &[TypeGen1]) -> f64 {
+            let arr: &[TypeGen1; 2] = defenders.try_into()
+                .expect("defenders should have length 2");
+            type_effectiveness_gen_1(attacker, arr)
+        }
+        
+        fn calculate_effectiveness_fast(&self, attacker: TypeGen1, defenders: &[TypeGen1]) -> f64 {
+            let arr: &[TypeGen1; 2] = defenders.try_into()
+                .expect("defenders should have length 2");
+            type_effectiveness_gen_1_fast(attacker, arr)
+        }
+    }
+
+    // Test Cases
+    #[test]
+    fn test_gen1_single_type_effectiveness() {
+        Gen1Tester.test_all_single_type_combinations();
     }
 
     #[test]
     fn test_gen1_dual_type_combinations() {
-        let cases = [
-            (TypeGen1::Electric, [TypeGen1::Ground, TypeGen1::Flying], 0.0),
-            (TypeGen1::Grass, [TypeGen1::Water, TypeGen1::Ground], 4.0),
-            (TypeGen1::Ghost, [TypeGen1::Normal, TypeGen1::Psychic], 0.0),
-        ];
-        
-        test_dual_type_combinations(&cases);
+        Gen1Tester.test_all_dual_type_combinations();
     }
 }
