@@ -1,4 +1,4 @@
-use crate::{PokemonGen1, MoveGen1, MoveCategory};
+use crate::{PokemonGen1, MoveGen1, MoveCategory, StatusGen1};
 use crate::types::type_effectiveness_gen_1;
 
 /// Damage calculation options for controlling RNG behavior
@@ -70,7 +70,15 @@ pub fn calc_damage_gen_1(
         attacker_stat = apply_stat_modifier(
             attacker_stat, 
             match mov.category {
-                MoveCategory::Physical => attacker.stat_stages.attack,
+                MoveCategory::Physical => {
+                    let mut stat = attacker.stat_stages.attack;
+                    if attacker.status == StatusGen1::Burned {
+                        stat = stat / 2;
+                        stat.max(1)
+                    } else {
+                        stat
+                    }
+                },
                 MoveCategory::Special => attacker.stat_stages.special,
                 _ => 0,
             }
@@ -86,7 +94,7 @@ pub fn calc_damage_gen_1(
         ) as u8;
     }
 
-    // Half defense stat if the move is Selfdestruct or Explosion
+    // Halve defense stat if the move is Selfdestruct or Explosion
     if mov.name == "Selfdestruct" || mov.name == "Explosion" {
         defender_stat = (defender_stat / 2).max(1);
     }
@@ -109,12 +117,12 @@ pub fn calc_damage_gen_1(
 
     // Apply random factor: Gen 1 rolls 217-255 (85-100% of damage)
     let damage: u16 = match roll {
-        DamageRoll::Min => (damage * 217) / 255,
-        DamageRoll::Average => (damage * 236) / 255,
+        DamageRoll::Min => ((damage as u32 * 217) / 255) as u16,
+        DamageRoll::Average => ((damage as u32 * 236) / 255) as u16,
         DamageRoll::Max => damage,
         DamageRoll::Random => {
             let random_factor = 217 + (rand::random::<u8>() % 39);
-            (damage * random_factor as u16) / 255
+            ((damage as u32 * random_factor as u32) / 255) as u16
         }
     };
 
@@ -142,7 +150,7 @@ mod tests {
                 special: 50,
                 speed: 90,
             },
-            stat_stages: Default::default(),
+            ..Default::default()
         };
         
         let starmie = PokemonGen1 {
@@ -156,7 +164,7 @@ mod tests {
                 special: 95,
                 speed: 115,
             },
-            stat_stages: Default::default(),
+            ..Default::default()
         };
 
         let thunderbolt = MoveGen1 { 
@@ -220,5 +228,27 @@ mod tests {
         let normal_damage = calc_damage_gen_1(&attacker, &defender, &move_, false, DamageRoll::Max);
 
         assert!(crit_damage > normal_damage)
+    }
+
+    #[test]
+    fn test_burn_penalty() {
+        let charizard = PokemonGen1 {
+            stats: StatsGen1 { attack: 100, ..Default::default() },
+            status: StatusGen1::Burned,
+            ..Default::default()
+        };
+        
+        let tackle = MoveGen1 {
+            category: MoveCategory::Physical,
+            power: 40,
+            ..Default::default()
+        };
+        
+        // Test consistent rolls
+        let min = calc_damage_gen_1(&charizard, &PokemonGen1::default(), &tackle, false, DamageRoll::Min);
+        let avg = calc_damage_gen_1(&charizard, &PokemonGen1::default(), &tackle, false, DamageRoll::Average);
+        let max = calc_damage_gen_1(&charizard, &PokemonGen1::default(), &tackle, false, DamageRoll::Max);
+
+        assert!(min < avg && avg < max);
     }
 }

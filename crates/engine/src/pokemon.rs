@@ -7,6 +7,7 @@ pub struct PokemonGen1 {
     pub types: [TypeGen1; 2], // e.g., [Type::Electric, Type::None]
     pub stats: StatsGen1,
     pub stat_stages: StatStagesGen1,
+    pub status: StatusGen1,
 }
 
 #[derive(Debug, Clone)]
@@ -27,6 +28,23 @@ pub struct StatStagesGen1 { // Apply this in damage.rs?
     pub speed: i8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StatusGen1 {
+    Healthy,
+    Burned,
+    Poisoned,
+    Paralyzed,
+    Asleep(u8),
+    Frozen,
+    // Note that Gen 1 doesn't have the badly poisoned condition
+}
+
+// TODO: Implement other status effects:
+// - Sleep/Frozen: Prevent attacking
+// - Paralyze: Speed reduction and attack failure chance
+// - Poison: End-of-turn damage
+// - Badly Poisoned: Progressive damage (Gen 2+)
+
 impl Default for PokemonGen1 {
     fn default() -> Self {
         Self {
@@ -34,6 +52,7 @@ impl Default for PokemonGen1 {
             types: [TypeGen1::Normal, TypeGen1::None],
             stats: Default::default(),
             stat_stages: Default::default(),
+            status: Default::default(),
         }
     }
 }
@@ -59,5 +78,11 @@ impl Default for StatStagesGen1 {
             special: 0, 
             speed: 0 
         }
+    }
+}
+
+impl Default for StatusGen1 {
+    fn default() -> Self {
+        StatusGen1::Healthy
     }
 }
