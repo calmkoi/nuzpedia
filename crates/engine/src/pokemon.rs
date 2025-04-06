@@ -6,6 +6,7 @@ pub struct PokemonGen1 {
     pub name: String,
     pub types: [TypeGen1; 2], // e.g., [Type::Electric, Type::None]
     pub stats: StatsGen1,
+    pub stat_stages: StatStagesGen1,
 }
 
 #[derive(Debug, Clone)]
@@ -16,4 +17,47 @@ pub struct StatsGen1 {
     pub defense: u8,
     pub special: u8,  // Gen 1 uses one special stat
     pub speed: u8,
+}
+
+#[derive(Debug, Clone)]
+pub struct StatStagesGen1 { // Apply this in damage.rs?
+    pub attack: i8, // -6 to +6
+    pub defense: i8,
+    pub special: i8,
+    pub speed: i8,
+}
+
+impl Default for PokemonGen1 {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            types: [TypeGen1::Normal, TypeGen1::None],
+            stats: Default::default(),
+            stat_stages: Default::default(),
+        }
+    }
+}
+
+impl Default for StatsGen1 {
+    fn default() -> Self {
+        Self { 
+            lvl: 100, 
+            hp: 0, 
+            attack: 0, 
+            defense: 0, 
+            special: 0, 
+            speed: 0 
+        }
+    }
+}
+
+impl Default for StatStagesGen1 {
+    fn default() -> Self {
+        Self { 
+            attack: 0, 
+            defense: 0, 
+            special: 0, 
+            speed: 0 
+        }
+    }
 }

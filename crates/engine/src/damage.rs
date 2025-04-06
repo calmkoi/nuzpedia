@@ -16,6 +16,29 @@ pub enum DamageRoll {
     Random,
 }
 
+fn apply_stat_modifier(base_stat: u8, stage: i8) -> u32 {
+    // Gen 1 uses different modifiers than later generations
+    let modifier = match stage.clamp(-6, 6) {
+        -6 => 2.0 / 8.0,
+        -5 => 2.0 / 7.0,
+        -4 => 2.0 / 6.0,
+        -3 => 2.0 / 5.0,
+        -2 => 2.0 / 4.0,
+        -1 => 2.0 / 3.0,
+        0 => 2.0 / 2.0,
+        1 => 3.0 / 2.0,
+        2 => 4.0 / 2.0,
+        3 => 5.0 / 2.0,
+        4 => 6.0 / 2.0,
+        5 => 7.0 / 2.0,
+        6 => 8.0 / 2.0,
+        _ => unreachable!(), // Clamped to -6..=6
+    };
+
+    // Apply stat modifier and ensure minimum of 1
+    ((base_stat as f64 * modifier).round() as u32).max(1)
+}
+
 pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
     defender: &PokemonGen1,
@@ -35,13 +58,32 @@ pub fn calc_damage_gen_1(
     let crit: u32 = if is_critical { 2 } else { 1 };
 
     // Use Attack or Special based on move type
-    let (attacker_stat, defender_stat) = match mov.category {
+    let (mut attacker_stat, mut defender_stat) = match mov.category {
         MoveCategory::Physical => (attacker.stats.attack, defender.stats.defense),
         MoveCategory::Special => (attacker.stats.special, defender.stats.special),
         MoveCategory::Status => unreachable!(), // Handled by power check
     };
 
-    // TODO: implement stat boosts and add logic for crits to ignore them
+    // Apply stat changes (crits ignore attack drops/defense boosts)
+    if !is_critical {
+        attacker_stat = apply_stat_modifier(
+            attacker_stat, 
+            match mov.category {
+                MoveCategory::Physical => attacker.stat_stages.attack,
+                MoveCategory::Special => attacker.stat_stages.special,
+                _ => 0,
+            }
+        ) as u8;
+
+        defender_stat = apply_stat_modifier(
+            defender_stat, 
+            match mov.category {
+                MoveCategory::Physical => defender.stat_stages.defense,
+                MoveCategory::Special => defender.stat_stages.special,
+                _ => 0,
+            }
+        ) as u8;
+    }
 
     // Convert values to u32 to avoid overflow
     let lvl: u32 = attacker.stats.lvl as u32;
@@ -76,6 +118,7 @@ pub fn calc_damage_gen_1(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pokemon::StatStagesGen1;
     // Need to explicitly import these as this file doesn't use them
     use crate::types::TypeGen1;
     use crate::StatsGen1;
@@ -93,6 +136,7 @@ mod tests {
                 special: 50,
                 speed: 90,
             },
+            stat_stages: Default::default(),
         };
         
         let starmie = PokemonGen1 {
@@ -106,6 +150,7 @@ mod tests {
                 special: 95,
                 speed: 115,
             },
+            stat_stages: Default::default(),
         };
 
         let thunderbolt = MoveGen1 { 
@@ -127,5 +172,50 @@ mod tests {
 
         assert!(random >= min && random <= max);
         
+    }
+
+    #[test]
+    fn test_stat_modifiers() {
+        // Test neutral stage
+        assert_eq!(apply_stat_modifier(100, 0), 100);
+
+        // Test positive stages
+        assert_eq!(apply_stat_modifier(100, 1), 150); // 1.5x
+        assert_eq!(apply_stat_modifier(100, 2), 200); // 2.0x
+        assert_eq!(apply_stat_modifier(100, 6), 400); // 4.0x
+        
+        // Test negative stages
+        assert_eq!(apply_stat_modifier(100, -1), 67); // 2/3
+        assert_eq!(apply_stat_modifier(100, -2), 50); // 1/2
+        assert_eq!(apply_stat_modifier(100, -6), 25); // 1/4
+        
+        // Test minimum of 1
+        assert_eq!(apply_stat_modifier(1, -6), 1);
+    }
+
+    #[test]
+    fn test_critical_hit_ignores_stages() {
+        let attacker = PokemonGen1 {
+            stats: StatsGen1 { attack: 100, ..Default::default() },
+            stat_stages: StatStagesGen1 { attack: -6, ..Default::default() },
+            ..Default::default()
+        };
+
+        let defender = PokemonGen1 {
+            stats: StatsGen1 { defense: 100, ..Default::default() },
+            stat_stages: StatStagesGen1 { defense: 6, ..Default::default() },
+            ..Default::default()
+        };
+
+        let move_ = MoveGen1 {
+            category: MoveCategory::Physical,
+            ..Default::default()
+        };
+
+        // Critical hit should ignore the -6 attack and +6 defense
+        let crit_damage = calc_damage_gen_1(&attacker, &defender, &move_, true, DamageRoll::Max);
+        let normal_damage = calc_damage_gen_1(&attacker, &defender, &move_, false, DamageRoll::Max);
+
+        assert!(crit_damage > normal_damage)
     }
 }
