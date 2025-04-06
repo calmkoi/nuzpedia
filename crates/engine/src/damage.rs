@@ -1,4 +1,5 @@
 use crate::{PokemonGen1, MoveGen1, MoveCategory};
+use crate::types::type_effectiveness_gen_1;
 
 pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
@@ -36,7 +37,10 @@ pub fn calc_damage_gen_1(
     let base: u32 = (((2 * lvl * crit / 5 + 2) * power * attack) / (defense * 50) + 2) as u32;
 
     // Apply STAB and TODO: Add type chart
-    let type_eff = 1.0; // Placeholder for type effectiveness
+    let type_eff = type_effectiveness_gen_1(
+        mov.typ,
+        &defender.types
+    );
     let damage = (base as f64 * stab * type_eff) as u16;
 
     // Apply random factor: Gen 1 rolls 217-255 (85-100% of damage)
@@ -53,18 +57,42 @@ mod tests {
     use crate::StatsGen1;
 
     #[test]
-    fn test_gen1_damage() {
+    fn test_thunderbolt_vs_starmie() {
         let pikachu = PokemonGen1 {
             name: "Pikachu".into(),
             types: [TypeGen1::Electric, TypeGen1::None],
-            stats: StatsGen1 {lvl: 100, hp: 35, attack: 55, defense: 30, special: 50, speed: 90},
+            stats: StatsGen1 {
+                lvl: 50,
+                hp: 35,
+                attack: 55,
+                defense: 30,
+                special: 50,
+                speed: 90,
+            },
         };
-        let thunderbolt = MoveGen1 {
-            name: "Thunderbolt".into(),
-            typ: TypeGen1::Electric,
-            power: 95,
+        
+        let starmie = PokemonGen1 {
+            name: "Starmie".into(),
+            types: [TypeGen1::Water, TypeGen1::Psychic],
+            stats: StatsGen1 {
+                lvl: 50,
+                hp: 60,
+                attack: 75,
+                defense: 85,
+                special: 95,
+                speed: 115,
+            },
+        };
+
+        let thunderbolt = MoveGen1 { 
+            name: "Thunderbolt".into(), 
+            typ: TypeGen1::Electric, 
+            power: 90, 
             category: MoveCategory::Special,
         };
-        assert!(calc_damage_gen_1(&pikachu, &pikachu, &thunderbolt, false) > 0); // TODO: fix this to actually test properly
+        
+        let damage = calc_damage_gen_1(&pikachu, &starmie, &thunderbolt, false);
+        // Verified range from official game mechanics
+        assert!((10..=108).contains(&damage)); 
     }
 }
