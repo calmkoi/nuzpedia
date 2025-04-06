@@ -86,6 +86,11 @@ pub fn calc_damage_gen_1(
         ) as u8;
     }
 
+    // Half defense stat if the move is Selfdestruct or Explosion
+    if mov.name == "Selfdestruct" || mov.name == "Explosion" {
+        defender_stat = (defender_stat / 2).max(1);
+    }
+
     // Convert values to u32 to avoid overflow
     let lvl: u32 = attacker.stats.lvl as u32;
     let power: u32 = mov.power as u32;
@@ -95,7 +100,7 @@ pub fn calc_damage_gen_1(
     // Base damage formula (excl. random)
     let base: u32 = (((2 * lvl * crit / 5 + 2) * power * attack) / (defense * 50) + 2) as u32;
 
-    // Apply STAB and TODO: Add type chart
+    // Apply STAB and type effectiveness
     let type_eff = type_effectiveness_gen_1(
         mov.typ,
         &defender.types
