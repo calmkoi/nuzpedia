@@ -211,8 +211,8 @@ impl PokemonGen1 {
     ///
     /// # Formula
     /// ```
-    /// stat = ((base + IV) * 2 + √EV) * level / 100 + 5
-    /// HP = ((base + IV) * 2 + √EV) * level / 100 + 10
+    /// stat = ((base + IV) * 2 + (EV.sqrt())) * level / 100 + 5
+    /// HP = ((base + IV) * 2 + (EV.sqrt())) * level / 100 + 10
     /// ```
     ///
     /// # Arguments

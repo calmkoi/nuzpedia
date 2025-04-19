@@ -7,7 +7,7 @@ use crate::types::type_effectiveness_gen_1;
 /// - Min: 217/255 (85%)
 /// - Average: 236/255 (~92.5%)
 /// - Max: 255/255 (100%)
-/// - Random: Uniformly random value in [217,255]
+/// - Random: Uniformly random value in \[217,255\] (85-100%)
 #[derive(Debug, Clone, Copy)]
 pub enum DamageRoll {
     /// Minimum possible damage (85%)
