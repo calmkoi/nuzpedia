@@ -1,21 +1,52 @@
 use crate::{PokemonGen1, MoveGen1, MoveCategory, StatusGen1};
 use crate::types::type_effectiveness_gen_1;
 
-/// Damage calculation options for controlling RNG behavior
+/// Controls how much damage randomisation is calculated in Generation 1 battles.
 ///
 /// In Gen 1, damage rolls range from 85% to 100% of base damage:
 /// - Min: 217/255 (85%)
 /// - Average: 236/255 (~92.5%)
 /// - Max: 255/255 (100%)
-/// - Random: Random value in [217,255]
+/// - Random: Uniformly random value in [217,255]
 #[derive(Debug, Clone, Copy)]
 pub enum DamageRoll {
+    /// Minimum possible damage (85%)
     Min,
+    /// Mean damage (~92.5%)
     Average,
+    /// Maximum possible damage (100%)
     Max,
+    /// Random damage between 85-100%
     Random,
 }
 
+/// Applies Generation 1 stat stage modifiers to a base stat.
+///
+/// # Formula
+/// Gen 1 uses integer division with truncation toward zero:
+/// ```
+/// modified_stat = (base_stat * numerator) / denominator
+/// ```
+/// where `(numerator, denominator)` are determined by the stage:
+///
+/// | Stage | Multiplier |
+/// |-------|------------|
+/// | -6    | 2/8        |
+/// | ...   | ...        |
+/// | +6    | 8/2        |
+///
+/// # Arguments
+/// * `base_stat` - The unmodified stat value (e.g., Attack, Defense).
+/// * `stage` - The stat stage (clamped between -6 and 6).
+///
+/// # Returns
+/// The modified stat value, clamped to a minimum of 1.
+///
+/// # Examples
+/// ```
+/// assert_eq!(apply_stat_modifier(100, -1), 66); // 100 * 2/3
+/// assert_eq!(apply_stat_modifier(100, 2), 200); // 100 * 4/2
+/// ```
 fn apply_stat_modifier(base_stat: u8, stage: i8) -> u32 {
     // Gen 1 uses integer division with truncation toward zero
     let (numerator, denominator) = match stage.clamp(-6, 6) {
@@ -40,6 +71,42 @@ fn apply_stat_modifier(base_stat: u8, stage: i8) -> u32 {
     result.max(1) // Minimum of 1
 }
 
+/// Calculates damage for a move in Generation 1.
+///
+/// Follows the [Gen 1 damage formula](https://bulbapedia.bulbagarden.net/wiki/Damage#Generation_I):
+/// ```
+/// damage = ((((2 * Level / 5 + 2) * Power * Attack) / Defense) / 50 + 2) * STAB * TypeEff * Roll
+/// ```
+///
+/// # Arguments
+/// * `attacker` - The attacking Pokémon.
+/// * `defender` - The defending Pokémon.
+/// * `mov` - The move being used.
+/// * `is_critical` - Whether the move is a critical hit.
+/// * `roll` - How to handle damage randomization.
+///
+/// # Returns
+/// The calculated damage (0 for status moves).
+///
+/// # Notes
+/// - Critical hits ignore attack drops and defense boosts.
+/// - Selfdestruct/Explosion halve the defender's Defense.
+/// - Burn halves Attack for physical moves (unless critical).
+///
+/// # Examples
+/// ```
+/// let pikachu = PokemonGen1::new("Pikachu", [TypeGen1::Electric, TypeGen1::None]);
+/// let starmie = PokemonGen1::new("Starmie", [TypeGen1::Water, TypeGen1::Psychic]);
+/// let thunderbolt = MoveGen1::new("Thunderbolt", TypeGen1::Electric, 90, MoveCategory::Special);
+///
+/// let damage = calc_damage_gen_1(
+///     &pikachu,
+///     &starmie,
+///     &thunderbolt,
+///     false,
+///     DamageRoll::Random
+/// );
+/// ```
 pub fn calc_damage_gen_1(
     attacker: &PokemonGen1,
     defender: &PokemonGen1,
@@ -137,6 +204,7 @@ mod tests {
     use crate::types::TypeGen1;
     use crate::StatsGen1;
 
+    /// Tests Thunderbolt damage against Starmie with various rolls.
     #[test]
     fn test_thunderbolt_vs_starmie() {
         let pikachu = PokemonGen1 {
@@ -188,6 +256,7 @@ mod tests {
         
     }
 
+    /// Verifies stat stage modifiers are calculated correctly.
     #[test]
     fn test_gen_1_stat_modifiers() {
         // Negative stages
@@ -204,6 +273,7 @@ mod tests {
         assert_eq!(apply_stat_modifier(0, 6), 1);      // Clamped from 0
     }
 
+    /// Confirms critical hits ignore stat changes.
     #[test]
     fn test_critical_hit_ignores_stages() {
         let attacker = PokemonGen1 {
@@ -230,6 +300,7 @@ mod tests {
         assert!(crit_damage > normal_damage)
     }
 
+    /// Checks that Burn correctly halves physical damage.
     #[test]
     fn test_burn_penalty() {
         let charizard = PokemonGen1 {
