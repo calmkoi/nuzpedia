@@ -1,6 +1,5 @@
 /// Generation 1 Pokémon types and type effectiveness calculations.
 ///
-/// Implements both a readable array-based approach and an optimized bitmask version.
 /// Follows Gen 1 mechanics where:
 /// - There are 15 types (+ `None` for single-type Pokémon)
 /// - Effectiveness is multiplicative for dual-types
@@ -34,145 +33,6 @@ impl TypeGen1 {
         ].iter().copied()
     }
 }
-
-// ================= Array-Based Implementation =================
-
-/// Super-effective matchups (2x damage) in Gen 1.
-///
-/// Format: `(attacking_type, defending_type)`
-const SUPER_EFFECTIVE: [(TypeGen1, TypeGen1); 38] = [
-    (TypeGen1::Fire, TypeGen1::Grass),
-    (TypeGen1::Fire, TypeGen1::Ice),
-    (TypeGen1::Fire, TypeGen1::Bug),
-    (TypeGen1::Water, TypeGen1::Fire),
-    (TypeGen1::Water, TypeGen1::Ground),
-    (TypeGen1::Water, TypeGen1::Rock),
-    (TypeGen1::Electric, TypeGen1::Water),
-    (TypeGen1::Electric, TypeGen1::Flying),
-    (TypeGen1::Grass, TypeGen1::Water),
-    (TypeGen1::Grass, TypeGen1::Ground),
-    (TypeGen1::Grass, TypeGen1::Rock),
-    (TypeGen1::Ice, TypeGen1::Grass),
-    (TypeGen1::Ice, TypeGen1::Ground),
-    (TypeGen1::Ice, TypeGen1::Flying),
-    (TypeGen1::Ice, TypeGen1::Dragon),
-    (TypeGen1::Fighting, TypeGen1::Normal),
-    (TypeGen1::Fighting, TypeGen1::Ice),
-    (TypeGen1::Fighting, TypeGen1::Rock),
-    (TypeGen1::Poison, TypeGen1::Grass),
-    (TypeGen1::Poison, TypeGen1::Bug),
-    (TypeGen1::Ground, TypeGen1::Fire),
-    (TypeGen1::Ground, TypeGen1::Electric),
-    (TypeGen1::Ground, TypeGen1::Poison),
-    (TypeGen1::Ground, TypeGen1::Rock),
-    (TypeGen1::Flying, TypeGen1::Grass),
-    (TypeGen1::Flying, TypeGen1::Fighting),
-    (TypeGen1::Flying, TypeGen1::Bug),
-    (TypeGen1::Psychic, TypeGen1::Fighting),
-    (TypeGen1::Psychic, TypeGen1::Poison),
-    (TypeGen1::Bug, TypeGen1::Grass),
-    (TypeGen1::Bug, TypeGen1::Poison),
-    (TypeGen1::Bug, TypeGen1::Psychic),
-    (TypeGen1::Rock, TypeGen1::Fire),
-    (TypeGen1::Rock, TypeGen1::Ice),
-    (TypeGen1::Rock, TypeGen1::Flying),
-    (TypeGen1::Rock, TypeGen1::Bug),
-    (TypeGen1::Ghost, TypeGen1::Ghost),
-    (TypeGen1::Dragon, TypeGen1::Dragon),
-];
-
-/// Not-very-effective matchups (0.5x damage) in Gen 1.
-const NOT_VERY_EFFECTIVE: [(TypeGen1, TypeGen1); 38] = [
-    (TypeGen1::Normal, TypeGen1::Rock),
-    (TypeGen1::Fire, TypeGen1::Fire),
-    (TypeGen1::Fire, TypeGen1::Water),
-    (TypeGen1::Fire, TypeGen1::Rock),
-    (TypeGen1::Fire, TypeGen1::Dragon),
-    (TypeGen1::Water, TypeGen1::Water),
-    (TypeGen1::Water, TypeGen1::Grass),
-    (TypeGen1::Water, TypeGen1::Dragon),
-    (TypeGen1::Electric, TypeGen1::Electric),
-    (TypeGen1::Electric, TypeGen1::Grass),
-    (TypeGen1::Electric, TypeGen1::Dragon),
-    (TypeGen1::Grass, TypeGen1::Fire),
-    (TypeGen1::Grass, TypeGen1::Grass),
-    (TypeGen1::Grass, TypeGen1::Poison),
-    (TypeGen1::Grass, TypeGen1::Flying),
-    (TypeGen1::Grass, TypeGen1::Bug),
-    (TypeGen1::Grass, TypeGen1::Dragon),
-    (TypeGen1::Ice, TypeGen1::Water),
-    (TypeGen1::Ice, TypeGen1::Ice),
-    (TypeGen1::Fighting, TypeGen1::Poison),
-    (TypeGen1::Fighting, TypeGen1::Flying),
-    (TypeGen1::Fighting, TypeGen1::Psychic),
-    (TypeGen1::Fighting, TypeGen1::Bug),
-    (TypeGen1::Poison, TypeGen1::Poison),
-    (TypeGen1::Poison, TypeGen1::Ground),
-    (TypeGen1::Poison, TypeGen1::Rock),
-    (TypeGen1::Poison, TypeGen1::Ghost),
-    (TypeGen1::Ground, TypeGen1::Grass),
-    (TypeGen1::Ground, TypeGen1::Bug),
-    (TypeGen1::Flying, TypeGen1::Electric),
-    (TypeGen1::Flying, TypeGen1::Rock),
-    (TypeGen1::Psychic, TypeGen1::Psychic),
-    (TypeGen1::Bug, TypeGen1::Fire),
-    (TypeGen1::Bug, TypeGen1::Fighting),
-    (TypeGen1::Bug, TypeGen1::Flying),
-    (TypeGen1::Bug, TypeGen1::Ghost),
-    (TypeGen1::Rock, TypeGen1::Fighting),
-    (TypeGen1::Rock, TypeGen1::Ground),
-];
-
-/// Immunity matchups (0x damage) in Gen 1.
-const IMMUNE: [(TypeGen1, TypeGen1); 6] = [
-    (TypeGen1::Normal, TypeGen1::Ghost),
-    (TypeGen1::Electric, TypeGen1::Ground),
-    (TypeGen1::Fighting, TypeGen1::Ghost),
-    (TypeGen1::Ground, TypeGen1::Flying),
-    (TypeGen1::Ghost, TypeGen1::Normal),
-    (TypeGen1::Ghost, TypeGen1::Psychic),
-];
-
-/// Calculates type effectiveness using array lookups.
-///
-/// # Arguments
-/// - `move_type`: The attacking move's type
-/// - `defender_types`: The defender's primary and secondary types
-///
-/// # Returns
-/// Effectiveness multiplier (0.0, 0.5, 1.0, 2.0, or 4.0 for dual-type)
-///
-/// # Example
-/// ```
-/// let effectiveness = type_effectiveness_gen_1(
-///     TypeGen1::Water,
-///     &[TypeGen1::Fire, TypeGen1::Ground]  // Charizard
-/// );
-/// assert_eq!(effectiveness, 4.0);  // Water is 2x against both
-/// ```
-pub fn type_effectiveness_gen_1(move_type: TypeGen1, defender_types: &[TypeGen1; 2]) -> f64 {
-    // Check immunities (attacker perspective)
-    for &defender_type in defender_types {
-        if IMMUNE.contains(&(move_type, defender_type)) {
-            return 0.0;
-        }
-    }
-
-    let mut multiplier = 1.0;
-    for &defender_type in defender_types {
-        if defender_type == TypeGen1::None {
-            continue;
-        }
-        if SUPER_EFFECTIVE.contains(&(move_type, defender_type)) {
-            multiplier *= 2.0;
-        } else if NOT_VERY_EFFECTIVE.contains(&(move_type, defender_type)) {
-            multiplier *= 0.5;
-        }
-    }
-    multiplier
-}
-
-// ================= Bitmask-Optimized Implementation =================
 
 /// Helper macro for creating type bitmasks.
 ///
@@ -257,7 +117,7 @@ const IMMUNE_MASK: [u16; 15] = [
 ///
 /// # Returns
 /// Same effectiveness multiplier
-pub fn type_effectiveness_gen_1_fast(move_type: TypeGen1, defender_types: &[TypeGen1; 2]) -> f64 {
+pub fn type_effectiveness_gen_1(move_type: TypeGen1, defender_types: &[TypeGen1; 2]) -> f64 {
     let move_idx = move_type as usize;
 
     // Check immunity (attacker perspective)
@@ -313,14 +173,12 @@ mod tests {
         fn all_types() -> Vec<Self::Type>;
         fn none() -> Self::Type;
         fn calculate_effectiveness(&self, attacker: Self::Type, defenders: &[Self::Type]) -> f64;
-        fn calculate_effectiveness_fast(&self, attacker: Self::Type, defenders: &[Self::Type]) -> f64;
         
         // Test infrastructure
         fn test_single_type_matchup(
             &self,
             attacker: Self::Type,
-            defender: Self::Type,
-            fast_impl: bool
+            defender: Self::Type
         ) {
             let expected = if self.immune(attacker, defender) {
                 0.0
@@ -328,25 +186,19 @@ mod tests {
                 self.effectiveness(attacker, defender)
             };
             
-            let actual = if fast_impl {
-                self.calculate_effectiveness_fast(attacker, &[defender, Self::none()])
-            } else {
-                self.calculate_effectiveness(attacker, &[defender, Self::none()])
-            };
+            let actual = self.calculate_effectiveness(attacker, &[defender, Self::none()]);
             
             assert!(
                 (actual - expected).abs() < f64::EPSILON,
-                "{:?} -> {:?}: expected {}, got {} (implementation: {})",
-                attacker, defender, expected, actual,
-                if fast_impl { "fast" } else { "original" }
+                "{:?} -> {:?}: expected {}, got {}",
+                attacker, defender, expected, actual
             );
         }
 
         fn test_all_single_type_combinations(&self) {
             for attacker in Self::all_types() {
                 for defender in Self::all_types() {
-                    self.test_single_type_matchup(attacker, defender, false);
-                    self.test_single_type_matchup(attacker, defender, true);
+                    self.test_single_type_matchup(attacker, defender);
                 }
             }
         }
@@ -357,19 +209,12 @@ mod tests {
             defenders: [Self::Type; 2],
             expected: f64
         ) {
-            let actual_slow = self.calculate_effectiveness(attacker, &defenders);
-            let actual_fast = self.calculate_effectiveness_fast(attacker, &defenders);
+            let actual = self.calculate_effectiveness(attacker, &defenders);
             
             assert!(
-                (actual_slow - expected).abs() < f64::EPSILON,
+                (actual - expected).abs() < f64::EPSILON,
                 "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (slow)",
-                attacker, defenders[0], defenders[1], expected, actual_slow
-            );
-            
-            assert!(
-                (actual_fast - expected).abs() < f64::EPSILON,
-                "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (fast)",
-                attacker, defenders[0], defenders[1], expected, actual_fast
+                attacker, defenders[0], defenders[1], expected, actual
             );
         }
 
@@ -444,12 +289,6 @@ mod tests {
             let arr: &[TypeGen1; 2] = defenders.try_into()
                 .expect("defenders should have length 2");
             type_effectiveness_gen_1(attacker, arr)
-        }
-        
-        fn calculate_effectiveness_fast(&self, attacker: TypeGen1, defenders: &[TypeGen1]) -> f64 {
-            let arr: &[TypeGen1; 2] = defenders.try_into()
-                .expect("defenders should have length 2");
-            type_effectiveness_gen_1_fast(attacker, arr)
         }
     }
 

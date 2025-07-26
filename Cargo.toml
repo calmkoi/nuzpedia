@@ -2,5 +2,4 @@
 resolver = "2"
 members = [
     "crates/engine", # Battle logic
-    "crates/cli",    # CLI frontend
 ]
