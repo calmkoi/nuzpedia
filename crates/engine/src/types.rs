@@ -69,6 +69,8 @@ const SUPER_EFFECTIVE_MASK: [u16; 15] = [
 ];
 
 /// Bitmask table for not-very-effective matchups (0.5x damage).
+///
+/// Indexed by attacking type, bits represent defending types.
 const NOT_VERY_EFFECTIVE_MASK: [u16; 15] = [
     mask!(12),                  // Normal (0) -> Rock(12)
     mask!(1, 2, 12, 14),        // Fire (1) -> Fire(1), Water(2), Rock(12), Dragon(14)
@@ -88,6 +90,8 @@ const NOT_VERY_EFFECTIVE_MASK: [u16; 15] = [
 ];
 
 /// Bitmask table for immunities (0x damage).
+///
+/// Indexed by attacking type, bits represent defending types.
 const IMMUNE_MASK: [u16; 15] = [
     mask!(13),          // Normal (0) -> Ghost(13)
     mask!(),            // Fire (1) -> None
@@ -106,17 +110,14 @@ const IMMUNE_MASK: [u16; 15] = [
     mask!(),            // Dragon (14) -> None
 ];
 
-/// Optimized type effectiveness calculator using bitmask operations.
-///
-/// 3-5x faster than array lookups on modern CPUs due to:
-/// - No branching in the inner loop
-/// - Bitwise operations instead of memory lookups
+/// Type effectiveness calculator using bitmask operations.
 ///
 /// # Arguments
-/// Same as `type_effectiveness_gen_1`
+/// - move_type: type of the attacking move.
+/// - defender_types: type/s of the defending pokemon.
 ///
 /// # Returns
-/// Same effectiveness multiplier
+/// - multiplier:
 pub fn type_effectiveness_gen_1(move_type: TypeGen1, defender_types: &[TypeGen1; 2]) -> f64 {
     let move_idx = move_type as usize;
 
