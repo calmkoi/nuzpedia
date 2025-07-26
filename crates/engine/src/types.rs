@@ -200,56 +200,29 @@ mod tests {
             type_effectiveness_gen_1(attacker, arr)
         }
 
-        // Specific type test infrastructure
-        fn test_single_type_matchup(
-            &self,
-            attacker: TypeGen1,
-            defender: TypeGen1
-        ) {
-            let expected = if self.immune(attacker, defender) {
-                0.0
-            } else {
-                self.effectiveness(attacker, defender)
-            };
-            
-            let actual = self.calculate_effectiveness(attacker, &[defender, Self::none()]);
-            
-            assert!(
-                (actual - expected).abs() < f64::EPSILON,
-                "{:?} -> {:?}: expected {}, got {}",
-                attacker, defender, expected, actual
-            );
-        }
-
+        // Specific type test functions
         fn test_all_single_type_combinations(&self) {
+            let mut collector = Gen1TypeFailureCollector::new();
+
             for attacker in Self::all_types() {
                 for defender in Self::all_types() {
-                    self.test_single_type_matchup(attacker, defender);
+                    let expected = if self.immune(attacker, defender) { 0.0 } else { self.effectiveness(attacker, defender) };
+                    let actual = self.calculate_effectiveness(attacker, &[defender, Self::none()]);
+                    collector.assert_single_type_matchup(attacker, defender, expected, actual);
                 }
             }
-        }
 
-        fn test_dual_type_pair(
-            &self,
-            attacker: TypeGen1,
-            defenders: [TypeGen1; 2],
-            expected: f64
-        ) {
-            let actual = self.calculate_effectiveness(attacker, &defenders);
-            
-            assert!(
-                (actual - expected).abs() < f64::EPSILON,
-                "Dual-type {:?} -> {:?}/{:?}: expected {}, got {} (slow)",
-                attacker, defenders[0], defenders[1], expected, actual
-            );
+            collector.fail_if_any(); // Panic once with ALL failures
         }
 
         fn test_all_dual_type_combinations(&self) {
+            let mut collector = Gen1TypeFailureCollector::new();
             let types = Self::all_types();
             for i in 0..types.len() {
                 for j in i..types.len() { // Avoid duplicate permutations
                     let type1 = types[i];
                     let type2 = types[j];
+                    let defenders = [type1, type2];
                     
                     for attacker in types.iter().copied() {
                         let expected = {
@@ -266,9 +239,50 @@ mod tests {
                             eff1 * eff2
                         };
                         
-                        self.test_dual_type_pair(attacker, [type1, type2], expected);
+                        let actual = self.calculate_effectiveness(attacker, &defenders);
+                        collector.assert_dual_type_matchup(attacker, &defenders, expected, actual);
                     }
                 }
+            }
+        }
+    }
+
+    /// Struct for logging multiple errors encountered in the pokemon type tests.
+    struct Gen1TypeFailureCollector {
+        failed_matchups: Vec<String>,
+    }
+
+    impl Gen1TypeFailureCollector {
+        fn new() -> Self {
+            Self { failed_matchups: Vec::new() }
+        }
+
+        fn assert_single_type_matchup(&mut self, attacker: TypeGen1, defender: TypeGen1, expected: f64, actual: f64) {
+            if (expected - actual).abs() >= f64::EPSILON {
+                self.failed_matchups.push(format!(
+                    "{:?} -> {:?}: expected {}, got {}",
+                    attacker, defender, expected, actual
+                ));
+            }
+        }
+
+        fn assert_dual_type_matchup(&mut self, attacker: TypeGen1, defenders: &[TypeGen1], expected: f64, actual: f64) {
+            if (expected - actual).abs() >= f64::EPSILON {
+                self.failed_matchups.push(format!(
+                    "{:?} -> {:?}/{:?}: expected {}, got {}",
+                    attacker, defenders[0], defenders[1], expected, actual
+                ));
+            }
+        }
+
+        fn fail_if_any(&self) {
+            if !self.failed_matchups.is_empty() {
+                let mut message = format!("{} failed matchups:\n", self.failed_matchups.len());
+                for entry in &self.failed_matchups {
+                    message.push_str(entry);
+                    message.push('\n');
+                }
+                panic!("{}", message);
             }
         }
     }
