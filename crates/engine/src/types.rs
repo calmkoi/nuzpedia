@@ -147,39 +147,64 @@ pub fn type_effectiveness_gen_1(move_type: TypeGen1, defender_types: &[TypeGen1;
     multiplier
 }
 
-// Generations 2-5 -------------------------------------------------------
-
-// Generation 6-9 --------------------------------------------------------
-
 // ================= Testing Infrastructure =================
 
 #[cfg(test)]
 mod tests {
     use super::*;
     
-    /// Trait for testing type effectiveness implementations.
+    /// Concrete Struct for testing generation 1 type effectiveness implementations.
     ///
     /// Provides comprehensive test coverage for:
     /// - All single-type matchups
     /// - All dual-type combinations
-    /// - Both array and bitmask implementations
-    trait TypeEffectivenessTester {
-        type Type: Copy + PartialEq + std::fmt::Debug;
+    struct Gen1Tester;
+
+    impl Gen1Tester {
+        // Core functions
+        fn effectiveness(&self, attacker: TypeGen1, defender: TypeGen1) -> f64 {
+            let move_idx = attacker as usize;
+            let def_idx = defender as usize;
+            
+            if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
+                2.0
+            } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
+                0.5
+            } else {
+                1.0
+            }
+        }
+
+        fn immune(&self, attacker: TypeGen1, defender: TypeGen1) -> bool {
+            let move_idx = attacker as usize;
+            let def_idx = defender as usize;
+            (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0
+        }
         
-        // Core functionality
-        fn effectiveness(&self, attacker: Self::Type, defender: Self::Type) -> f64;
-        fn immune(&self, attacker: Self::Type, defender: Self::Type) -> bool;
+        fn all_types() -> Vec<TypeGen1> {
+            vec![
+                TypeGen1::Normal, TypeGen1::Fire, TypeGen1::Water, TypeGen1::Electric,
+                TypeGen1::Grass, TypeGen1::Ice, TypeGen1::Fighting, TypeGen1::Poison,
+                TypeGen1::Ground, TypeGen1::Flying, TypeGen1::Psychic, TypeGen1::Bug,
+                TypeGen1::Rock, TypeGen1::Ghost, TypeGen1::Dragon
+            ]
+        }
         
-        // Required implementations
-        fn all_types() -> Vec<Self::Type>;
-        fn none() -> Self::Type;
-        fn calculate_effectiveness(&self, attacker: Self::Type, defenders: &[Self::Type]) -> f64;
+        fn none() -> TypeGen1 {
+            TypeGen1::None
+        }
         
-        // Test infrastructure
+        fn calculate_effectiveness(&self, attacker: TypeGen1, defenders: &[TypeGen1]) -> f64 {
+            let arr: &[TypeGen1; 2] = defenders.try_into()
+                .expect("defenders should have length 2");
+            type_effectiveness_gen_1(attacker, arr)
+        }
+
+        // Specific type test infrastructure
         fn test_single_type_matchup(
             &self,
-            attacker: Self::Type,
-            defender: Self::Type
+            attacker: TypeGen1,
+            defender: TypeGen1
         ) {
             let expected = if self.immune(attacker, defender) {
                 0.0
@@ -206,8 +231,8 @@ mod tests {
 
         fn test_dual_type_pair(
             &self,
-            attacker: Self::Type,
-            defenders: [Self::Type; 2],
+            attacker: TypeGen1,
+            defenders: [TypeGen1; 2],
             expected: f64
         ) {
             let actual = self.calculate_effectiveness(attacker, &defenders);
@@ -248,58 +273,13 @@ mod tests {
         }
     }
 
-    /// Gen 1-specific test implementation.
-    struct Gen1Tester;
-    
-    impl TypeEffectivenessTester for Gen1Tester {
-        type Type = TypeGen1;
-        
-        fn effectiveness(&self, attacker: TypeGen1, defender: TypeGen1) -> f64 {
-            let move_idx = attacker as usize;
-            let def_idx = defender as usize;
-            
-            if (SUPER_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                2.0
-            } else if (NOT_VERY_EFFECTIVE_MASK[move_idx] & (1 << def_idx)) != 0 {
-                0.5
-            } else {
-                1.0
-            }
-        }
-        
-        fn immune(&self, attacker: TypeGen1, defender: TypeGen1) -> bool {
-            let move_idx = attacker as usize;
-            let def_idx = defender as usize;
-            (IMMUNE_MASK[move_idx] & (1 << def_idx)) != 0
-        }
-        
-        fn all_types() -> Vec<TypeGen1> {
-            vec![
-                TypeGen1::Normal, TypeGen1::Fire, TypeGen1::Water, TypeGen1::Electric,
-                TypeGen1::Grass, TypeGen1::Ice, TypeGen1::Fighting, TypeGen1::Poison,
-                TypeGen1::Ground, TypeGen1::Flying, TypeGen1::Psychic, TypeGen1::Bug,
-                TypeGen1::Rock, TypeGen1::Ghost, TypeGen1::Dragon
-            ]
-        }
-        
-        fn none() -> TypeGen1 {
-            TypeGen1::None
-        }
-        
-        fn calculate_effectiveness(&self, attacker: TypeGen1, defenders: &[TypeGen1]) -> f64 {
-            let arr: &[TypeGen1; 2] = defenders.try_into()
-                .expect("defenders should have length 2");
-            type_effectiveness_gen_1(attacker, arr)
-        }
-    }
-
-    /// Tests all single-type matchups against both implementations.
+    /// Tests all single-type matchups.
     #[test]
     fn test_gen1_single_type_effectiveness() {
         Gen1Tester.test_all_single_type_combinations();
     }
 
-    /// Tests all dual-type combinations against both implementations.
+    /// Tests all dual-type combinations.
     #[test]
     fn test_gen1_dual_type_combinations() {
         Gen1Tester.test_all_dual_type_combinations();
