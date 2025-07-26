@@ -18,10 +18,10 @@
 pub mod pokemon;
 pub mod poke_move;
 pub mod damage;
-pub mod types;
+pub mod gen1_types;
 
 /// Re-export core battle types for convenient access.
 pub use pokemon::{PokemonGen1, StatsGen1, StatStagesGen1, StatusGen1};
 pub use poke_move::{MoveGen1, MoveCategory};
 pub use damage::{DamageRoll, calc_damage_gen_1};
-pub use types::{TypeGen1, type_effectiveness_gen_1};
+pub use gen1_types::{TypeGen1, type_effectiveness_gen_1};

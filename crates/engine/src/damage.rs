@@ -1,5 +1,5 @@
 use crate::{PokemonGen1, MoveGen1, MoveCategory, StatusGen1};
-use crate::types::type_effectiveness_gen_1;
+use crate::gen1_types::type_effectiveness_gen_1;
 
 /// Controls how much damage randomisation is calculated in Generation 1 battles.
 ///
@@ -201,7 +201,7 @@ mod tests {
     use super::*;
     use crate::pokemon::StatStagesGen1;
     // Need to explicitly import these as this file doesn't use them
-    use crate::types::TypeGen1;
+    use crate::gen1_types::TypeGen1;
     use crate::StatsGen1;
 
     /// Tests Thunderbolt damage against Starmie with various rolls.
