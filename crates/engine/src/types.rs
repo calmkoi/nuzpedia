@@ -158,9 +158,9 @@ mod tests {
     /// Provides comprehensive test coverage for:
     /// - All single-type matchups
     /// - All dual-type combinations
-    struct Gen1Tester;
+    struct Gen1TypeTester;
 
-    impl Gen1Tester {
+    impl Gen1TypeTester {
         // Core functions
         fn effectiveness(&self, attacker: TypeGen1, defender: TypeGen1) -> f64 {
             let move_idx = attacker as usize;
@@ -276,12 +276,12 @@ mod tests {
     /// Tests all single-type matchups.
     #[test]
     fn test_gen1_single_type_effectiveness() {
-        Gen1Tester.test_all_single_type_combinations();
+        Gen1TypeTester.test_all_single_type_combinations();
     }
 
     /// Tests all dual-type combinations.
     #[test]
     fn test_gen1_dual_type_combinations() {
-        Gen1Tester.test_all_dual_type_combinations();
+        Gen1TypeTester.test_all_dual_type_combinations();
     }
 }
