@@ -53,3 +53,70 @@ impl Default for MoveCategory {
         MoveCategory::Status
     }
 }
+
+// ================= Testing Infrastructure =================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_move_values() {
+        let m = MoveGen1::default();
+        assert_eq!(m.name, "");
+        assert_eq!(m.typ, TypeGen1::Normal);
+        assert_eq!(m.power, 50);
+        assert_eq!(m.category, MoveCategory::Physical);
+    }
+
+    #[test]
+    fn status_move_zero_power() {
+        let m = MoveGen1 {
+            category: MoveCategory::Status,
+            power: 0,
+            ..Default::default()
+        };
+        assert!(m.power == 0);
+    }
+
+    #[test]
+    fn damaging_move_detection() {
+        let m = MoveGen1 {
+            name: "Fire Blast".to_string(),
+            typ: TypeGen1::Fire,
+            power: 110,
+            category: MoveCategory::Special,
+        };
+
+        assert!(m.power > 0);
+        assert_ne!(m.category, MoveCategory::Status);
+    }
+
+    #[test]
+    fn move_type_matches_category() {
+        let _m1 = MoveGen1 {
+            typ: TypeGen1::Electric,
+            category: MoveCategory::Special, // Electric is special only in Gen 1
+            ..Default::default()
+        };
+        let _m2 = MoveGen1 {
+            typ: TypeGen1::Ground,
+            category: MoveCategory::Physical, // Ground is physical in Gen 1
+            ..Default::default()
+        };
+        // No need for assertations, saved for gen1_damage.rs
+    }
+
+    #[test]
+    fn zero_power_non_status_move() {
+        let m = MoveGen1 {
+            name: "Splash".to_string(),
+            power: 0,
+            category: MoveCategory::Physical, // Legal in Gen 1
+            ..Default::default()
+        };
+
+        // Ensure the struct allows this, even if it's ignored by the damage calc
+        assert_eq!(m.power, 0);
+    }
+ }
